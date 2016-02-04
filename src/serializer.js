@@ -1,15 +1,24 @@
 /* globals Matter */
 // Modify Matter.js to contain a replayer intermediate step
-(function() {
+(function(globals) {
     'use strict';
-    var MatterCore = Matter,
-        oldFns = {},
+    var oldFns = {},
         necromancer = new Resurrect();
 
-    Matter._actions = [];
+    var MatterDev = {};
+
+    // Copy all the Matter modules
+    Object.keys(Matter)
+        .forEach(mod => MatterDev[mod] = Matter.Common.clone(Matter[mod]));
+    
+    MatterDev._actions = [];
 
     // Create the pass-through functions
-    var fns = {World: ['create', 'add', 'remove']},
+    var fns = {
+            World: ['create', 'add', 'remove'],
+            Engine: ['create'],
+            Body: Object.keys(MatterDev.Body)
+        },
         modules = Object.keys(fns),
         mod,
         name,
@@ -32,14 +41,19 @@
         oldFns[mod] = {};
         for (var j = fns[mod].length; j--;) {
             name = fns[mod][j];
-            oldFns[mod][name] = Matter[mod][name];
+            oldFns[mod][name] = MatterDev[mod][name];
             console.log('adding serialization fn for ' + mod + ' (' + name + ')');
-            Matter[mod][name] = serFn.bind(Matter, mod, name);
+            MatterDev[mod][name] = serFn.bind(MatterDev, mod, name);
         }
     }
 
-    Matter.actions = function() {
+    MatterDev.actions = function() {
         return necromancer.stringify(this._actions);
     };
 
-})();
+    MatterDev.download = function() {
+        download(this.actions(), 'actions.json', 'text/json');
+    };
+
+    globals.MatterDev = MatterDev;
+})(this);
