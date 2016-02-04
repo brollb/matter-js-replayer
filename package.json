@@ -1,0 +1,15 @@
+{
+  "name": "matter-js-replayer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build-ser": "cat lib/matter.js lib/resurrect.js src/serializer.js > build/serializer.js",
+    "build-rep": "cat lib/matter.js lib/resurrect.js src/replayer.js > build/replayer.js",
+    "build": "npm run build-ser && npm run build-rep",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
+
