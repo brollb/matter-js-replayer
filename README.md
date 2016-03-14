@@ -4,17 +4,18 @@ This is a project which provides serializable logs for matter-js which can then 
 ## Quick Start
 Serialization of actions:
 
-1. replace `matter.js` with `dist/serializer.js`
+1. replace `matter.js` with `build/serializer.js`
 2. replace `Matter` with `MatterDev` in the source
-3. call `MatterDev.download()` to download the serialized actions as json
+3. use `MatterDev` just as you would `Matter`
+4. call `MatterDev.download()` to download the serialized actions as json
 
 Replaying actions:
 
-1. include `dist/replayer.js`
+1. include `build/replayer.js`
 2. create a replayer (`var replayer = new Replayer();`)
 3. call `replayer.play(actions);` where `actions` is the array of actions
 
-## Example Code
+## Example Code (Replay)
 ```javascript
 var replayer = new Replayer();
 
