@@ -9782,6 +9782,8 @@ Resurrect.prototype.resurrect = function(string) {
     var necromancer = new Resurrect();
 
     var Replayer = function() {
+        this.engine = null;
+        this.world = null;
         this.actions = null;
     };
 
@@ -9802,6 +9804,10 @@ Resurrect.prototype.resurrect = function(string) {
 
     Replayer.prototype._next = function(action) {
         console.log(`invoking Matter.${action.module}.${action.method}(${action.args.join(', ')})`);
+
+        // Set engine/world as needed
+        action.args = action.args.map((arg, i) => this._updateArg(arg, i, action));
+
         // Play the action 
         Matter[action.module][action.method].apply(Matter, action.args);
 
@@ -9812,6 +9818,16 @@ Resurrect.prototype.resurrect = function(string) {
         } else {
             console.log('finished!');
         }
+    };
+
+    Replayer.prototype._updateArg = function(arg/*, i, action*/) {
+        if (arg.label === 'World') {
+            return this.world || (this.world = arg);
+        }
+        if (arg.label === 'Engine') {
+            return this.engine || (this.engine = arg);
+        }
+        return arg;
     };
 
     globals.Replayer = Replayer;
