@@ -1,5 +1,5 @@
 /**
-* matter-js dev by @liabru 2016-02-04
+* matter-js 0.9.1 by @liabru 2016-02-15
 * http://brm.io/matter-js/
 * License MIT
 */
@@ -102,6 +102,7 @@ var Axes = require('../geometry/Axes');
             timeScale: 1,
             render: {
                 visible: true,
+                opacity: 1,
                 sprite: {
                     xScale: 1,
                     yScale: 1,
@@ -1027,6 +1028,14 @@ var Axes = require('../geometry/Axes');
      * @type boolean
      * @default true
      */
+
+    /**
+     * Sets the opacity to use when rendering.
+     *
+     * @property render.opacity
+     * @type number
+     * @default 1
+    */
 
     /**
      * An `Object` that defines the sprite properties to use when rendering, if any.
@@ -1981,9 +1990,6 @@ var Bounds = require('../geometry/Bounds');
         var collisions = [],
             pairsTable = engine.pairs.table;
 
-        // @if DEBUG
-        var metrics = engine.metrics;
-        // @endif
         
         for (var i = 0; i < broadphasePairs.length; i++) {
             var bodyA = broadphasePairs[i][0], 
@@ -1995,9 +2001,6 @@ var Bounds = require('../geometry/Bounds');
             if (!Detector.canCollide(bodyA.collisionFilter, bodyB.collisionFilter))
                 continue;
 
-            // @if DEBUG
-            metrics.midphaseTests += 1;
-            // @endif
 
             // mid phase
             if (Bounds.overlaps(bodyA.bounds, bodyB.bounds)) {
@@ -2022,17 +2025,9 @@ var Bounds = require('../geometry/Bounds');
                             // narrow phase
                             var collision = SAT.collides(partA, partB, previousCollision);
 
-                            // @if DEBUG
-                            metrics.narrowphaseTests += 1;
-                            if (collision.reused)
-                                metrics.narrowReuseCount += 1;
-                            // @endif
 
                             if (collision.collided) {
                                 collisions.push(collision);
-                                // @if DEBUG
-                                metrics.narrowDetections += 1;
-                                // @endif
                             }
                         }
                     }
@@ -2113,10 +2108,6 @@ var Common = require('../core/Common');
             bucketId,
             gridChanged = false;
 
-        // @if DEBUG
-        var metrics = engine.metrics;
-        metrics.broadphaseTests = 0;
-        // @endif
 
         for (i = 0; i < bodies.length; i++) {
             var body = bodies[i];
@@ -2134,9 +2125,6 @@ var Common = require('../core/Common');
             // if the body has changed grid region
             if (!body.region || newRegion.id !== body.region.id || forceUpdate) {
 
-                // @if DEBUG
-                metrics.broadphaseTests += 1;
-                // @endif
 
                 if (!body.region || forceUpdate)
                     body.region = newRegion;
@@ -4438,9 +4426,6 @@ var Body = require('../body/Body');
         engine.broadphase = engine.broadphase.controller.create(engine.broadphase);
         engine.metrics = engine.metrics || { extended: false };
 
-        // @if DEBUG
-        engine.metrics = Metrics.create(engine.metrics);
-        // @endif
 
         return engine;
     };
@@ -4457,11 +4442,12 @@ var Body = require('../body/Body');
      * Triggers `collisionStart`, `collisionActive` and `collisionEnd` events.
      * @method update
      * @param {engine} engine
-     * @param {number} delta
-     * @param {number} [correction]
+     * @param {number} [delta=16.666]
+     * @param {number} [correction=1]
      */
     Engine.update = function(engine, delta, correction) {
-        correction = (typeof correction !== 'undefined') ? correction : 1;
+        delta = delta || 1000 / 60;
+        correction = correction || 1;
 
         var world = engine.world,
             timing = engine.timing,
@@ -4483,10 +4469,6 @@ var Body = require('../body/Body');
         var allBodies = Composite.allBodies(world),
             allConstraints = Composite.allConstraints(world);
 
-        // @if DEBUG
-        // reset metrics logging
-        Metrics.reset(engine.metrics);
-        // @endif
 
         // if sleeping enabled, call the sleeping controller
         if (engine.enableSleeping)
@@ -4557,10 +4539,6 @@ var Body = require('../body/Body');
         if (pairs.collisionEnd.length > 0)
             Events.trigger(engine, 'collisionEnd', { pairs: pairs.collisionEnd });
 
-        // @if DEBUG
-        // update metrics log
-        Metrics.update(engine.metrics, engine);
-        // @endif
 
         // clear force buffers
         _bodiesClearForces(allBodies);
@@ -4954,99 +4932,6 @@ var Common = require('./Common');
 })();
 
 },{"./Common":14}],17:[function(require,module,exports){
-// @if DEBUG
-/**
-* _Internal Class_, not generally used outside of the engine's internals.
-*
-*/
-
-var Metrics = {};
-
-module.exports = Metrics;
-
-var Composite = require('../body/Composite');
-var Common = require('./Common');
-
-(function() {
-
-    /**
-     * Creates a new metrics.
-     * @method create
-     * @private
-     * @return {metrics} A new metrics
-     */
-    Metrics.create = function(options) {
-        var defaults = {
-            extended: false,
-            narrowDetections: 0,
-            narrowphaseTests: 0,
-            narrowReuse: 0,
-            narrowReuseCount: 0,
-            midphaseTests: 0,
-            broadphaseTests: 0,
-            narrowEff: 0.0001,
-            midEff: 0.0001,
-            broadEff: 0.0001,
-            collisions: 0,
-            buckets: 0,
-            bodies: 0,
-            pairs: 0
-        };
-
-        return Common.extend(defaults, false, options);
-    };
-
-    /**
-     * Resets metrics.
-     * @method reset
-     * @private
-     * @param {metrics} metrics
-     */
-    Metrics.reset = function(metrics) {
-        if (metrics.extended) {
-            metrics.narrowDetections = 0;
-            metrics.narrowphaseTests = 0;
-            metrics.narrowReuse = 0;
-            metrics.narrowReuseCount = 0;
-            metrics.midphaseTests = 0;
-            metrics.broadphaseTests = 0;
-            metrics.narrowEff = 0;
-            metrics.midEff = 0;
-            metrics.broadEff = 0;
-            metrics.collisions = 0;
-            metrics.buckets = 0;
-            metrics.pairs = 0;
-            metrics.bodies = 0;
-        }
-    };
-
-    /**
-     * Updates metrics.
-     * @method update
-     * @private
-     * @param {metrics} metrics
-     * @param {engine} engine
-     */
-    Metrics.update = function(metrics, engine) {
-        if (metrics.extended) {
-            var world = engine.world,
-                bodies = Composite.allBodies(world);
-
-            metrics.collisions = metrics.narrowDetections;
-            metrics.pairs = engine.pairs.list.length;
-            metrics.bodies = bodies.length;
-            metrics.midEff = (metrics.narrowDetections / (metrics.midphaseTests || 1)).toFixed(2);
-            metrics.narrowEff = (metrics.narrowDetections / (metrics.narrowphaseTests || 1)).toFixed(2);
-            metrics.broadEff = (1 - (metrics.broadphaseTests / (bodies.length || 1))).toFixed(2);
-            metrics.narrowReuse = (metrics.narrowReuseCount / (metrics.narrowphaseTests || 1)).toFixed(2);
-            //var broadphase = engine.broadphase[engine.broadphase.current];
-            //if (broadphase.instance)
-            //    metrics.buckets = Common.keys(broadphase.instance.buckets).length;
-        }
-    };
-
-})();
-// @endif
 
 },{"../body/Composite":2,"./Common":14}],18:[function(require,module,exports){
 /**
@@ -5814,10 +5699,13 @@ var Vector = require('../geometry/Vector');
      */
     Bodies.circle = function(x, y, radius, options, maxSides) {
         options = options || {};
-        options.label = 'Circle Body';
+
+        var circle = {
+            label: 'Circle Body',
+            circleRadius: radius
+        };
         
         // approximate circles with polygons until true circles implemented in SAT
-
         maxSides = maxSides || 25;
         var sides = Math.ceil(Math.max(10, Math.min(maxSides, radius)));
 
@@ -5825,10 +5713,7 @@ var Vector = require('../geometry/Vector');
         if (sides % 2 === 1)
             sides += 1;
 
-        // flag for better rendering
-        options.circleRadius = radius;
-
-        return Bodies.polygon(x, y, sides, radius, options);
+        return Bodies.polygon(x, y, sides, radius, Common.extend({}, circle, options));
     };
 
     /**
@@ -6463,10 +6348,10 @@ module.exports = Bounds;
      * @param {vector} velocity
      */
     Bounds.update = function(bounds, vertices, velocity) {
-        bounds.min.x = Number.MAX_VALUE;
-        bounds.max.x = -Number.MAX_VALUE;
-        bounds.min.y = Number.MAX_VALUE;
-        bounds.max.y = -Number.MAX_VALUE;
+        bounds.min.x = Infinity;
+        bounds.max.x = -Infinity;
+        bounds.min.y = Infinity;
+        bounds.max.y = -Infinity;
 
         for (var i = 0; i < vertices.length; i++) {
             var vertex = vertices[i];
@@ -6549,6 +6434,8 @@ module.exports = Bounds;
 },{}],25:[function(require,module,exports){
 /**
 * The `Matter.Svg` module contains methods for converting SVG images into an array of vector points.
+*
+* To use this module you also need the SVGPathSeg polyfill: https://github.com/progers/pathseg
 *
 * See the included usage [examples](https://github.com/liabru/matter-js/tree/master/examples).
 *
@@ -7470,9 +7357,6 @@ Matter.Mouse = require('../core/Mouse');
 Matter.Runner = require('../core/Runner');
 Matter.Sleeping = require('../core/Sleeping');
 
-// @if DEBUG
-Matter.Metrics = require('../core/Metrics');
-// @endif
 
 Matter.Bodies = require('../factory/Bodies');
 Matter.Composites = require('../factory/Composites');
@@ -7775,27 +7659,6 @@ var Vector = require('../geometry/Vector');
                 text += "fps: " + Math.round(metrics.timing.fps) + space;
             }
 
-            // @if DEBUG
-            if (metrics.extended) {
-                if (metrics.timing) {
-                    text += "delta: " + metrics.timing.delta.toFixed(3) + space;
-                    text += "correction: " + metrics.timing.correction.toFixed(3) + space;
-                }
-
-                text += "bodies: " + bodies.length + space;
-
-                if (engine.broadphase.controller === Grid)
-                    text += "buckets: " + metrics.buckets + space;
-
-                text += "\n";
-
-                text += "collisions: " + metrics.collisions + space;
-                text += "pairs: " + engine.pairs.list.length + space;
-                text += "broad: " + metrics.broadEff + space;
-                text += "mid: " + metrics.midEff + space;
-                text += "narrow: " + metrics.narrowEff + space;
-            }
-            // @endif            
 
             render.debugString = text;
             render.debugTimestamp = engine.timing.timestamp;
@@ -7918,6 +7781,7 @@ var Vector = require('../geometry/Vector');
         var c = context,
             render = engine.render,
             options = render.options,
+            showInternalEdges = options.showInternalEdges || !options.wireframes,
             body,
             part,
             i,
@@ -7936,13 +7800,16 @@ var Vector = require('../geometry/Vector');
                 if (!part.render.visible)
                     continue;
 
+                if (options.showSleeping && body.isSleeping) {
+                    c.globalAlpha = 0.5 * part.render.opacity;
+                } else if (part.render.opacity !== 1) {
+                    c.globalAlpha = part.render.opacity;
+                }
+
                 if (part.render.sprite && part.render.sprite.texture && !options.wireframes) {
                     // part sprite
                     var sprite = part.render.sprite,
                         texture = _getTexture(render, sprite.texture);
-
-                    if (options.showSleeping && body.isSleeping) 
-                        c.globalAlpha = 0.5;
 
                     c.translate(part.position.x, part.position.y); 
                     c.rotate(part.angle);
@@ -7958,9 +7825,6 @@ var Vector = require('../geometry/Vector');
                     // revert translation, hopefully faster than save / restore
                     c.rotate(-part.angle);
                     c.translate(-part.position.x, -part.position.y); 
-
-                    if (options.showSleeping && body.isSleeping) 
-                        c.globalAlpha = 1;
                 } else {
                     // part polygon
                     if (part.circleRadius) {
@@ -7969,31 +7833,37 @@ var Vector = require('../geometry/Vector');
                     } else {
                         c.beginPath();
                         c.moveTo(part.vertices[0].x, part.vertices[0].y);
+
                         for (var j = 1; j < part.vertices.length; j++) {
-                            c.lineTo(part.vertices[j].x, part.vertices[j].y);
+                            if (!part.vertices[j - 1].isInternal || showInternalEdges) {
+                                c.lineTo(part.vertices[j].x, part.vertices[j].y);
+                            } else {
+                                c.moveTo(part.vertices[j].x, part.vertices[j].y);
+                            }
+
+                            if (part.vertices[j].isInternal && !showInternalEdges) {
+                                c.moveTo(part.vertices[(j + 1) % part.vertices.length].x, part.vertices[(j + 1) % part.vertices.length].y);
+                            }
                         }
+                        
+                        c.lineTo(part.vertices[0].x, part.vertices[0].y);
                         c.closePath();
                     }
 
                     if (!options.wireframes) {
-                        if (options.showSleeping && body.isSleeping) {
-                            c.fillStyle = Common.shadeColor(part.render.fillStyle, 50);
-                        } else {
-                            c.fillStyle = part.render.fillStyle;
-                        }
-
+                        c.fillStyle = part.render.fillStyle;
                         c.lineWidth = part.render.lineWidth;
                         c.strokeStyle = part.render.strokeStyle;
                         c.fill();
-                        c.stroke();
                     } else {
                         c.lineWidth = 1;
                         c.strokeStyle = '#bbb';
-                        if (options.showSleeping && body.isSleeping)
-                            c.strokeStyle = 'rgba(255,255,255,0.2)';
-                        c.stroke();
                     }
+
+                    c.stroke();
                 }
+
+                c.globalAlpha = 1;
             }
         }
     };
@@ -8219,11 +8089,13 @@ var Vector = require('../geometry/Vector');
         if (options.wireframes) {
             c.strokeStyle = 'indianred';
         } else {
-            c.strokeStyle = 'rgba(0,0,0,0.3)';
+            c.strokeStyle = 'rgba(0,0,0,0.8)';
+            c.globalCompositeOperation = 'overlay';
         }
 
         c.lineWidth = 1;
         c.stroke();
+        c.globalCompositeOperation = 'source-over';
     };
 
     /**
@@ -8787,7 +8659,8 @@ var Vector = require('../geometry/Vector');
 
 },{"../body/Composite":2,"../collision/Grid":6,"../core/Common":14,"../core/Events":16,"../geometry/Bounds":24,"../geometry/Vector":26}],30:[function(require,module,exports){
 /**
-* See the included usage [examples](https://github.com/liabru/matter-js/tree/master/examples).
+* The `Matter.RenderPixi` module is an example renderer using pixi.js.
+* See also `Matter.Render` for a canvas based renderer.
 *
 * @class RenderPixi
 */
@@ -8812,6 +8685,10 @@ var Common = require('../core/Common');
             controller: RenderPixi,
             element: null,
             canvas: null,
+            renderer: null,
+            container: null,
+            spriteContainer: null,
+            pixiOptions: null,
             options: {
                 width: 800,
                 height: 600,
@@ -8838,17 +8715,19 @@ var Common = require('../core/Common');
             transparent = !render.options.wireframes && render.options.background === 'transparent';
 
         // init pixi
-        render.context = new PIXI.WebGLRenderer(render.options.width, render.options.height, {
+        render.pixiOptions = render.pixiOptions || {
             view: render.canvas,
             transparent: transparent,
             antialias: true,
             backgroundColor: options.background
-        });
-        
-        render.canvas = render.context.view;
-        render.container = new PIXI.Container();
+        };
+
+        render.renderer = render.renderer || new PIXI.WebGLRenderer(render.options.width, render.options.height, render.pixiOptions);
+        render.container = render.container || new PIXI.Container();
+        render.spriteContainer = render.spriteContainer || new PIXI.Container();
+        render.canvas = render.canvas || render.renderer.view;
         render.bounds = render.bounds || { 
-            min: { 
+            min: {
                 x: 0,
                 y: 0
             }, 
@@ -8864,7 +8743,6 @@ var Common = require('../core/Common');
         render.primitives = {};
 
         // use a sprite batch for performance
-        render.spriteContainer = new PIXI.Container();
         render.container.addChild(render.spriteContainer);
 
         // insert canvas
@@ -8937,7 +8815,7 @@ var Common = require('../core/Common');
             if (isColor) {
                 // if solid background color
                 var color = Common.colorToNumber(background);
-                render.context.backgroundColor = color;
+                render.renderer.backgroundColor = color;
 
                 // remove background sprite if existing
                 if (bgSprite)
@@ -8966,7 +8844,7 @@ var Common = require('../core/Common');
     RenderPixi.world = function(engine) {
         var render = engine.render,
             world = engine.world,
-            context = render.context,
+            renderer = render.renderer,
             container = render.container,
             options = render.options,
             bodies = Composite.allBodies(world),
@@ -9024,7 +8902,7 @@ var Common = require('../core/Common');
         for (i = 0; i < constraints.length; i++)
             RenderPixi.constraint(engine, constraints[i]);
 
-        context.render(container);
+        renderer.render(container);
     };
 
 
@@ -9785,17 +9663,28 @@ Resurrect.prototype.resurrect = function(string) {
         this.engine = null;
         this.world = null;
         this.actions = null;
+        this._index = 0;
     };
 
-    Replayer.prototype.play = function(actions) {
+    Replayer.prototype.play = function(actions, opts) {
         var action,
+            accel,
             t_0;
+
+        if (this._index) {
+            throw Error('Cannot play actions until the current action sequence has finished');
+        }
+
+        opts = opts || {};
+        accel = opts.speed || 1;
+        this.last = opts.count || Infinity;
 
         this.actions = necromancer.resurrect(actions);
 
         // normalize the times
         t_0 = this.actions[0].time;
-        this.actions.forEach(cmd => cmd.time -= t_0);
+        this.actions
+            .forEach(cmd => cmd.time = (cmd.time - t_0)/accel);
 
         action = this.actions.shift();
 
@@ -9803,7 +9692,8 @@ Resurrect.prototype.resurrect = function(string) {
     };
 
     Replayer.prototype._next = function(action) {
-        console.log(`invoking Matter.${action.module}.${action.method}(${action.args.join(', ')})`);
+        console.log(`invoking #${++this._index}: Matter.${action.module}.` +
+            `${action.method}(${action.args.join(', ')})`);
 
         // Set engine/world as needed
         action.args = action.args.map((arg, i) => this._updateArg(arg, i, action));
@@ -9812,11 +9702,13 @@ Resurrect.prototype.resurrect = function(string) {
         Matter[action.module][action.method].apply(Matter, action.args);
 
         // Queue the next action
-        if (this.actions.length) {
+        if (this.actions.length && this._index < this.last) {
             var next = this.actions.shift();
+            console.log(`invoking next action in ${next.time/1000} seconds`);
             setTimeout(this._next.bind(this), next.time, next);
         } else {
-            console.log('finished!');
+            console.log(`finished! Played ${this._index} actions.`);
+            this._index = 0;
         }
     };
 
